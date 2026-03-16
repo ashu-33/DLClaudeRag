@@ -122,11 +122,22 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     let html = `<div class="message-content">${displayContent}</div>`;
     
     if (sources && sources.length > 0) {
+        const tabs = sources.map(s => {
+            const parts = s.title.split(' - ');
+            const course = parts[0];
+            const lesson = parts[1] || '';
+            const label = lesson
+                ? `<span class="tab-course">${course}</span><span class="tab-lesson">${lesson}</span>`
+                : `<span class="tab-course">${course}</span>`;
+            return s.url
+                ? `<a class="source-tab" href="${s.url}" target="_blank" rel="noopener noreferrer">${label}</a>`
+                : `<span class="source-tab">${label}</span>`;
+        }).join('');
         html += `
-            <details class="sources-collapsible">
-                <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
-            </details>
+            <div class="sources-strip">
+                <span class="sources-label">Sources</span>
+                <div class="source-tabs">${tabs}</div>
+            </div>
         `;
     }
     
@@ -169,9 +180,11 @@ async function loadCourseStats() {
         
         // Update course titles
         if (courseTitles) {
-            if (data.course_titles && data.course_titles.length > 0) {
-                courseTitles.innerHTML = data.course_titles
-                    .map(title => `<div class="course-title-item">${title}</div>`)
+            if (data.courses && data.courses.length > 0) {
+                courseTitles.innerHTML = data.courses
+                    .map(course => course.link
+                        ? `<a class="course-title-item" href="${course.link}" target="_blank" rel="noopener noreferrer">${course.title}</a>`
+                        : `<div class="course-title-item">${course.title}</div>`)
                     .join('');
             } else {
                 courseTitles.innerHTML = '<span class="no-courses">No courses available</span>';

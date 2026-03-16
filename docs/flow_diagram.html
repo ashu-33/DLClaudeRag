@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DLClaudeRag — Information Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 40px 20px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 600;
+    color: #f0f6fc;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #8b949e;
+    font-size: 13px;
+    margin-bottom: 48px;
+  }
+
+  /* ── layout ── */
+  .diagram {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* ── section labels ── */
+  .lane-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #484f58;
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+
+  /* ── rows ── */
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 0;
+    position: relative;
+  }
+
+  /* ── nodes ── */
+  .node {
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    position: relative;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+  .node .sub {
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+
+  /* colours by layer */
+  .user    { background: #1c2128; border: 1px solid #30363d; color: #79c0ff; }
+  .fe      { background: #161b22; border: 1px solid #21262d; color: #56d364; }
+  .api     { background: #161b22; border: 1px solid #21262d; color: #d2a8ff; }
+  .rag     { background: #161b22; border: 1px solid #21262d; color: #ffa657; }
+  .search  { background: #161b22; border: 1px solid #21262d; color: #79c0ff; }
+  .vec     { background: #161b22; border: 1px solid #21262d; color: #f0883e; }
+  .claude  { background: #161b22; border: 1px solid #bd561d; color: #ff7b72; }
+  .session { background: #161b22; border: 1px solid #21262d; color: #e3b341; }
+  .db      { background: #0d1117; border: 1px dashed #30363d; color: #8b949e; border-radius: 6px; }
+
+  /* ── arrows ── */
+  .arrow {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-width: 30px;
+  }
+  .arrow-line {
+    width: 100%;
+    height: 1px;
+    background: #30363d;
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -4px;
+    width: 0; height: 0;
+    border-left: 7px solid #30363d;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+  }
+  .arrow-label {
+    font-size: 9px;
+    color: #484f58;
+    white-space: nowrap;
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+  }
+
+  /* vertical arrow */
+  .v-arrow {
+    width: 1px;
+    background: #30363d;
+    margin: 0 auto;
+    position: relative;
+  }
+  .v-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: -4px;
+    width: 0; height: 0;
+    border-top: 7px solid #30363d;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+  }
+  .v-arrow-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 0;
+  }
+  .v-arrow-label {
+    font-size: 9px;
+    color: #484f58;
+    letter-spacing: 0.3px;
+    margin-left: 8px;
+    align-self: flex-start;
+    padding-left: calc(50% + 4px);
+  }
+
+  /* ── sections ── */
+  .section {
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 12px;
+    background: #010409;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #21262d;
+  }
+
+  /* ── two-flow layout ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ── legend ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 32px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #8b949e;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+  }
+
+  /* ── big flow diagram ── */
+  .flow-wrap {
+    overflow-x: auto;
+  }
+  .flow {
+    min-width: 700px;
+  }
+
+  /* ── tool-use loop box ── */
+  .loop-box {
+    border: 1px dashed #30363d;
+    border-radius: 8px;
+    padding: 14px;
+    margin: 8px 0;
+    background: #0d1117;
+    position: relative;
+  }
+  .loop-box .loop-label {
+    position: absolute;
+    top: -9px;
+    left: 12px;
+    background: #0d1117;
+    padding: 0 6px;
+    font-size: 9px;
+    color: #484f58;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* compact grid */
+  .grid3 {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: center;
+    gap: 0;
+  }
+  .grid5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>DLClaudeRag — Information Flow</h1>
+<p class="subtitle">Course Materials RAG System · FastAPI · ChromaDB · Anthropic Claude</p>
+
+<div class="diagram">
+
+  <!-- ══════════════════ STARTUP INGESTION ══════════════════ -->
+  <div class="section">
+    <div class="section-title" style="color:#56d364">① Startup — Document Ingestion</div>
+    <div class="flow-wrap">
+      <div class="flow">
+
+        <div class="row">
+          <div class="node rag" style="width:120px">app.py<div class="sub">FastAPI startup</div></div>
+          <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">docs/*.txt</div></div>
+          <div class="node rag" style="width:140px">DocumentProcessor<div class="sub">parse &amp; chunk</div></div>
+          <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">CourseChunk[]</div></div>
+          <div class="node vec" style="width:140px">VectorStore<div class="sub">ChromaDB</div></div>
+          <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">embed + store</div></div>
+          <div class="node db" style="width:130px">chroma_db/<div class="sub">course_content<br>course_catalog</div></div>
+        </div>
+
+        <div class="v-arrow-wrap" style="margin-left:340px; margin-top:4px">
+          <div class="v-arrow" style="height:28px"></div>
+          <div class="v-arrow-label">SentenceTransformer<br>all-MiniLM-L6-v2 → 384-dim</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="margin-top:10px; font-size:11px; color:#484f58; line-height:1.8;">
+      <strong style="color:#8b949e">Document format:</strong> course title · link · instructor → Lesson N blocks<br>
+      <strong style="color:#8b949e">Chunking:</strong> 800-char chunks, 100-char overlap, sentence-boundary aware<br>
+      <strong style="color:#8b949e">Collections:</strong> <code style="color:#ffa657">course_catalog</code> (metadata) · <code style="color:#ffa657">course_content</code> (searchable chunks)
+    </div>
+  </div>
+
+  <!-- ══════════════════ QUERY FLOW ══════════════════ -->
+  <div class="section">
+    <div class="section-title" style="color:#d2a8ff">② Query Flow — User asks a question</div>
+    <div class="flow-wrap">
+      <div class="flow">
+
+        <!-- row 1: user → frontend → API -->
+        <div class="row">
+          <div class="node user" style="width:100px">Browser<div class="sub">index.html<br>script.js</div></div>
+          <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">POST /api/query<br>{query, session_id}</div></div>
+          <div class="node api" style="width:110px">app.py<div class="sub">FastAPI endpoint</div></div>
+          <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">QueryRequest</div></div>
+          <div class="node rag" style="width:130px">RAGSystem<div class="sub">orchestrator</div></div>
+          <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">get history</div></div>
+          <div class="node session" style="width:130px">SessionManager<div class="sub">conversation memory<br>last 2 exchanges</div></div>
+        </div>
+
+        <div class="v-arrow-wrap" style="margin-left:355px; margin-top:4px">
+          <div class="v-arrow" style="height:24px"></div>
+        </div>
+
+        <!-- tool-use loop -->
+        <div class="loop-box" style="margin-left:250px; max-width:520px">
+          <div class="loop-label">Claude Tool-Use Loop</div>
+
+          <div class="row">
+            <div class="node claude" style="width:150px">AIGenerator<div class="sub">claude-sonnet-4<br>tool_choice: auto</div></div>
+            <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">search_course_content</div></div>
+            <div class="node search" style="width:130px">ToolManager<div class="sub">CourseSearchTool</div></div>
+            <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">query + filters</div></div>
+            <div class="node vec" style="width:120px">VectorStore<div class="sub">semantic search</div></div>
+          </div>
+
+          <div class="v-arrow-wrap" style="margin-left: calc(100% - 60px); margin-top:4px">
+            <div class="v-arrow" style="height:20px"></div>
+            <div class="v-arrow-label">Top-5 chunks</div>
+          </div>
+
+          <div style="text-align:right; font-size:10px; color:#484f58; margin-top:4px">
+            ChromaDB cosine similarity ← all-MiniLM-L6-v2 embeddings
+          </div>
+        </div>
+
+        <div class="v-arrow-wrap" style="margin-left:355px; margin-top:4px">
+          <div class="v-arrow" style="height:24px"></div>
+          <div class="v-arrow-label">synthesized answer + sources</div>
+        </div>
+
+        <!-- row 3: back to user -->
+        <div class="row">
+          <div class="node user" style="width:100px">Browser<div class="sub">render answer<br>show sources</div></div>
+          <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">QueryResponse<br>{answer, sources,<br>session_id}</div></div>
+          <div class="node api" style="width:110px">app.py<div class="sub">JSON response</div></div>
+          <div class="arrow"><div class="arrow-line"></div><div class="arrow-label">save exchange</div></div>
+          <div class="node session" style="width:130px">SessionManager<div class="sub">append to history</div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ COMPONENT DETAIL ══════════════════ -->
+  <div class="section">
+    <div class="section-title" style="color:#ffa657">③ Component Responsibilities</div>
+    <div class="grid5">
+      <div class="node fe" style="width:100%; padding:12px">
+        <div style="font-size:11px; font-weight:700; margin-bottom:6px">Frontend</div>
+        <div class="sub" style="text-align:left; font-size:10px; line-height:1.7">
+          • index.html · style.css · script.js<br>
+          • Session ID management<br>
+          • Markdown rendering<br>
+          • Course stats sidebar<br>
+          • Touch/keyboard input
+        </div>
+      </div>
+      <div style="width:8px"></div>
+      <div class="node rag" style="width:100%; padding:12px">
+        <div style="font-size:11px; font-weight:700; margin-bottom:6px">Backend Core</div>
+        <div class="sub" style="text-align:left; font-size:10px; line-height:1.7">
+          • app.py — FastAPI, routes<br>
+          • rag_system.py — orchestrator<br>
+          • document_processor.py<br>
+          • models.py — Pydantic<br>
+          • config.py — env vars
+        </div>
+      </div>
+      <div style="width:8px"></div>
+      <div class="node claude" style="width:100%; padding:12px">
+        <div style="font-size:11px; font-weight:700; margin-bottom:6px">AI Layer</div>
+        <div class="sub" style="text-align:left; font-size:10px; line-height:1.7">
+          • ai_generator.py<br>
+          • search_tools.py<br>
+          • session_manager.py<br>
+          • Model: claude-sonnet-4<br>
+          • Temp: 0 · Max tokens: 800
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:11px; color:#8b949e; line-height:1.8">
+      <div>
+        <strong style="color:#ffa657">VectorStore (ChromaDB)</strong><br>
+        › <code>course_catalog</code> — course metadata, semantic name resolution<br>
+        › <code>course_content</code> — chunked lesson text, filterable by course + lesson<br>
+        › Persistent at <code>./chroma_db</code>
+      </div>
+      <div>
+        <strong style="color:#e3b341">SessionManager</strong><br>
+        › In-memory dict keyed by session_id<br>
+        › Stores last 2 user/assistant exchanges (4 msgs)<br>
+        › Injected into Claude system prompt for context
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ API ENDPOINTS ══════════════════ -->
+  <div class="section">
+    <div class="section-title" style="color:#79c0ff">④ API Endpoints &amp; Data Contracts</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; font-size:11px; line-height:1.7">
+      <div style="border:1px solid #21262d; border-radius:6px; padding:10px">
+        <div style="color:#d2a8ff; font-weight:700; margin-bottom:6px">POST /api/query</div>
+        <div style="color:#8b949e">
+          In: <code>{query, session_id?}</code><br>
+          Out: <code>{answer, sources[], session_id}</code><br>
+          Triggers full RAG pipeline
+        </div>
+      </div>
+      <div style="border:1px solid #21262d; border-radius:6px; padding:10px">
+        <div style="color:#56d364; font-weight:700; margin-bottom:6px">GET /api/courses</div>
+        <div style="color:#8b949e">
+          Out: <code>{total_courses, courses[]}</code><br>
+          Reads course_catalog collection<br>
+          Populates sidebar stats
+        </div>
+      </div>
+      <div style="border:1px solid #21262d; border-radius:6px; padding:10px">
+        <div style="color:#79c0ff; font-weight:700; margin-bottom:6px">GET /</div>
+        <div style="color:#8b949e">
+          Serves frontend/index.html<br>
+          Static files from /frontend<br>
+          Docs at /docs (Swagger)
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#79c0ff"></div>User / HTTP</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#56d364"></div>Frontend</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d2a8ff"></div>API Layer</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ffa657"></div>RAG Orchestration</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff7b72"></div>Claude AI</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f0883e"></div>Vector Store</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e3b341"></div>Session / State</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#484f58"></div>Persistence</div>
+</div>
+
+</body>
+</html>

@@ -40,16 +40,26 @@ class QueryRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
 
+class SourceItem(BaseModel):
+    title: str
+    url: Optional[str] = None
+
 class QueryResponse(BaseModel):
     """Response model for course queries"""
     answer: str
-    sources: List[str]
+    sources: List[SourceItem]
     session_id: str
+
+class CourseInfo(BaseModel):
+    """Course title with optional link"""
+    title: str
+    link: Optional[str] = None
 
 class CourseStats(BaseModel):
     """Response model for course statistics"""
     total_courses: int
     course_titles: List[str]
+    courses: List[CourseInfo]
 
 # API Endpoints
 
@@ -80,7 +90,8 @@ async def get_course_stats():
         analytics = rag_system.get_course_analytics()
         return CourseStats(
             total_courses=analytics["total_courses"],
-            course_titles=analytics["course_titles"]
+            course_titles=analytics["course_titles"],
+            courses=[CourseInfo(**c) for c in analytics["courses"]]
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

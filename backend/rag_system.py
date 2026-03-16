@@ -141,7 +141,10 @@ class RAGSystem:
     
     def get_course_analytics(self) -> Dict:
         """Get analytics about the course catalog"""
+        all_metadata = self.vector_store.get_all_courses_metadata()
+        courses = [{"title": m["title"], "link": m.get("course_link")} for m in all_metadata]
         return {
-            "total_courses": self.vector_store.get_course_count(),
-            "course_titles": self.vector_store.get_existing_course_titles()
+            "total_courses": len(courses),
+            "course_titles": [c["title"] for c in courses],
+            "courses": courses
         }
